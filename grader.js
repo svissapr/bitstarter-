@@ -21,11 +21,17 @@ References:
    - https://developer.mozilla.org/en-US/docs/JSON#JSON_in_Firefox_2
 */
 
+
+var rest = require('restler');
+var util = require('util');
 var fs = require('fs');
 var program = require('commander');
 var cheerio = require('cheerio');
 var HTMLFILE_DEFAULT = "index.html";
 var CHECKSFILE_DEFAULT = "checks.json";
+var URL_DEFAULT = "http://still-hollows-8152.herokuapp.com"
+var outfile = "output.html"
+
 
 var assertFileExists = function(infile) {
     var instr = infile.toString();
@@ -36,7 +42,16 @@ var assertFileExists = function(infile) {
     return instr;
 };
 
+
+var testurl = function(url){
+    return util.format(url);
+
+}
+
+
+
 var cheerioHtmlFile = function(htmlfile) {
+
     return cheerio.load(fs.readFileSync(htmlfile));
 };
 
@@ -65,10 +80,29 @@ if(require.main == module) {
     program
         .option('-f, --file <html_file>', 'Path to index.html', clone(assertFileExists), HTMLFILE_DEFAULT)
         .option('-c, --checks <check_file>', 'Path to checks.json', clone(assertFileExists), CHECKSFILE_DEFAULT)
-        .parse(process.argv);
-    var checkJson = checkHtmlFile(program.file, program.checks);
-    var outJson = JSON.stringify(checkJson, null, 4);
-    console.log(outJson);
+        .option('-u, --url <url>', 'Check URL') //, url, URL_DEFAULT)
+	.parse(process.argv);
+    if (program.url != null) {
+	var checkurl = testurl(program.url);
+	rest.get(checkurl).on('complete', function(result) {
+	    if (result instanceof Error) {
+		console.log('Error: ' + result.message);
+		this.retry(5000); // try again after 5 sec
+	    } else {
+	    //sys.puts(result);
+		fs.writeFileSync(outfile, result);
+		var checkJson = checkHtmlFile(program.file, program.checks);
+		var outJson = JSON.stringify(checkJson, null, 4);
+		console.log(outJson);
+	    }
+	});
+    } else {
+
+	var checkJson = checkHtmlFile(program.file, program.checks);
+	var outJson = JSON.stringify(checkJson, null, 4);
+	console.log(outJson);
+    }
 } else {
     exports.checkHtmlFile = checkHtmlFile;
 }
+
